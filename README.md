@@ -14,6 +14,53 @@ Open [http://localhost:4111](http://localhost:4111) in your browser to access [M
 
 You can start editing files inside the `src/mastra` directory. The development server will automatically reload whenever you make changes.
 
+## Telegram bot local test
+
+1. Create a bot in Telegram with `@BotFather`, then copy the bot token and username.
+2. Create `.env` from `.env.example` and fill:
+
+```shell
+OPENAI_API_KEY=...
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_BOT_USERNAME=your_bot_username
+```
+
+3. Start Mastra:
+
+```shell
+pnpm run dev
+```
+
+4. Open the bot on your phone and send a direct message like `weather in Lisbon`.
+
+See results in the terminal!
+
+## Cloudflare Workers
+
+This project includes Mastra's Cloudflare deployer and the `@mastra/cloudflare` package. Telegram is configured in webhook mode, which is the correct mode for Workers.
+
+Before deployment, set these Cloudflare secrets:
+
+```shell
+npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put TELEGRAM_BOT_USERNAME
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
+```
+
+After deployment, register Telegram with:
+
+```shell
+curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"url\": \"https://YOUR-WORKER-DOMAIN/api/agents/weather-agent/channels/telegram/webhook\",
+    \"secret_token\": \"$TELEGRAM_WEBHOOK_SECRET_TOKEN\"
+  }"
+```
+
+Mastra's Durable Objects storage adapter (`CloudflareDOStorage`) must be constructed inside a Durable Object from `ctx.storage.sql`. The generated Cloudflare deployer Worker does not run the Mastra server inside a Durable Object by default, so a production Durable Objects backend requires a custom Worker entry that exports a Durable Object class and forwards requests through that object.
+
 ## Learn more
 
 To learn more about Mastra, visit our [documentation](https://mastra.ai/docs/). Your bootstrapped project includes example code for [agents](https://mastra.ai/docs/agents/overview), [tools](https://mastra.ai/docs/agents/using-tools), [workflows](https://mastra.ai/docs/workflows/overview), [scorers](https://mastra.ai/docs/evals/overview), and [observability](https://mastra.ai/docs/observability/overview).
