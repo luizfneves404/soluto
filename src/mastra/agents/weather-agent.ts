@@ -1,7 +1,7 @@
 import { createGroq, type GroqTranscriptionModelOptions } from "@ai-sdk/groq";
 import { createTelegramAdapter } from "@chat-adapter/telegram";
 import { Agent } from "@mastra/core/agent";
-import { Memory } from "@mastra/memory";
+import { MockMemory } from "@mastra/core/memory";
 import { experimental_transcribe as transcribe } from "ai";
 import { Message, type Thread } from "chat";
 import { scorers } from "../scorers/weather-scorer";
@@ -57,7 +57,7 @@ Use the weatherTool to fetch current weather data.`,
 			},
 		},
 	},
-	memory: new Memory(),
+	memory: new MockMemory(),
 	...(telegramBotToken
 		? {
 				channels: {
