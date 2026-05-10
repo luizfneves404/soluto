@@ -12,7 +12,7 @@
 	"migrations": [
 		{
 			"tag": "chat-state-do-v1",
-			"new_classes": ["ChatStateDurableObject"]
+			"new_sqlite_classes": ["ChatStateDurableObject"]
 		}
 	],
 	"durable_objects": {
