@@ -47,10 +47,24 @@ export const mastra = new Mastra({
 	}),
 	deployer: new CloudflareDeployer({
 		name: "soluto",
-		compatibility_date: "2025-04-01",
+		compatibility_date: "2026-05-10",
 		compatibility_flags: [
 			"nodejs_compat",
 			"nodejs_compat_populate_process_env",
 		],
+		workers_dev: false,
+		preview_urls: false,
+		observability: {
+			logs: {
+				enabled: false,
+			},
+		},
+		main: "./.mastra/output/index.mjs",
+		vars: {},
+		alias: {
+			typescript: "./.mastra/output/typescript-stub.mjs",
+			execa: "./execa-stub.mjs",
+			"readable-stream": "./readable-stream-stub.mjs",
+		},
 	}),
 });
