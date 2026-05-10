@@ -1,8 +1,0 @@
-{
-	"name": "@opentelemetry/sdk-node",
-	"version": "0.0.0-workerd-stub",
-	"description": "Minimal stub so Daytona SDK can load on Cloudflare without pulling gRPC/proto/protobuf into the Mastra bundle.",
-	"main": "index.js",
-	"type": "commonjs",
-	"license": "Apache-2.0"
-}

@@ -1,8 +1,0 @@
-{
-	"name": "@opentelemetry/otlp-exporter-base",
-	"version": "0.0.0-workerd-stub",
-	"description": "Stub without otlp-transformer/protobufjs for Cloudflare Worker bundles (Daytona SDK).",
-	"main": "index.js",
-	"type": "commonjs",
-	"license": "Apache-2.0"
-}

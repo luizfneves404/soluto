@@ -1,87 +1,106 @@
 # soluto
 
-Soluto agent bot for Telegram.
+Soluto is a Telegram agent bot planned for Cloudflare Workers.
 
-## Getting Started
-
-Install dependencies (once per clone):
-
-```shell
+```txt
 bun install
-```
-
-Start the development server:
-
-```shell
 bun run dev
 ```
 
-Open [http://localhost:4111](http://localhost:4111) in your browser to access [Mastra Studio](https://mastra.ai/docs/studio/overview). It provides an interactive UI for building and testing your agents, along with a REST API that exposes your Mastra application as a local service. This lets you start building without worrying about integration right away.
+Set Worker secrets:
 
-You can start editing files inside the `src/mastra` directory. The development server will automatically reload whenever you make changes.
-
-## Telegram bot local test
-
-1. Create a bot in Telegram with `@BotFather`, then copy the bot token and username.
-2. Create `.env` from `.env.example` and fill:
-
-```shell
-OPENAI_API_KEY=...
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_BOT_USERNAME=your_bot_username
-```
-
-3. Start Mastra:
-
-```shell
-bun run dev
-```
-
-4. Open the bot on your phone and send a direct message like `weather in Lisbon`.
-
-See results in the terminal!
-
-## Cloudflare Workers
-
-This project includes Mastra's Cloudflare deployer and the `@mastra/cloudflare` package. Telegram is configured in webhook mode, which is the correct mode for Workers.
-
-Before deployment, set these Cloudflare secrets:
-
-```shell
-bunx wrangler secret put OPENAI_API_KEY
+```txt
 bunx wrangler secret put TELEGRAM_BOT_TOKEN
-bunx wrangler secret put TELEGRAM_BOT_USERNAME
-bunx wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
+bunx wrangler secret put OPENAI_API_KEY
 ```
 
-After deployment, register Telegram with:
+Optionally set a webhook secret and pass the same value when registering the Telegram webhook:
 
-```shell
-curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"url\": \"https://YOUR-WORKER-DOMAIN/api/agents/weather-agent/channels/telegram/webhook\",
-    \"secret_token\": \"$TELEGRAM_WEBHOOK_SECRET_TOKEN\"
-  }"
+```txt
+bunx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 ```
 
-Mastra's Durable Objects storage adapter (`CloudflareDOStorage`) must be constructed inside a Durable Object from `ctx.storage.sql`. The generated Cloudflare deployer Worker does not run the Mastra server inside a Durable Object by default, so a production Durable Objects backend requires a custom Worker entry that exports a Durable Object class and forwards requests through that object.
+```txt
+bun run deploy
+```
 
-## Learn more
+After deploy, register the Telegram webhook:
 
-To learn more about Mastra, visit our [documentation](https://mastra.ai/docs/). Your bootstrapped project includes example code for [agents](https://mastra.ai/docs/agents/overview), [tools](https://mastra.ai/docs/agents/using-tools), [workflows](https://mastra.ai/docs/workflows/overview), [scorers](https://mastra.ai/docs/evals/overview), and [observability](https://mastra.ai/docs/observability/overview).
+```txt
+curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  --json '{"url":"https://<worker-url>/telegram/webhook","secret_token":"<optional-webhook-secret>"}'
+```
 
-If you're new to AI agents, check out our [course](https://mastra.ai/learn) and [YouTube videos](https://youtube.com/@mastra-ai). You can also join our [Discord](https://discord.gg/BTYqqHKUrf) community to get help and share your projects.
+[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
 
-## Deploy to the Mastra platform
+```txt
+bun run cf-typegen
+```
 
-The [Mastra platform](https://projects.mastra.ai) provides two products for deploying and managing AI applications built with the Mastra framework:
+Today the webhook runs one **`generateText`** pass per Telegram text message (GPT `gpt-5.4-mini` via `@ai-sdk/openai`) and posts the assistant reply back to the chat. The same module exposes **`createAssistantLanguageModel`** so a future **`ToolLoopAgent`** (agent loop) can reuse the configured model instance.
 
-- **Studio**: A hosted visual environment for testing agents, running workflows, and inspecting traces
-- **Server**: A production deployment target that runs your Mastra application as an API server
+## Overview
 
-Learn more in the [Mastra platform documentation](https://mastra.ai/docs/mastra-platform/overview).
+The goal is to run a small Telegram webhook API. The runtime should stay simple enough to fit Cloudflare Workers limits and make each dependency explicit.
 
-# Tech
+## Why Not Mastra
 
-- Bun (pnpm was taking too long on build)
+Mastra's Cloudflare deployer currently produces a Worker bundle that exceeds the Cloudflare Workers Free 3 MB gzip limit even for a very small app. The planned runtime removes Mastra from the production path and uses smaller, direct building blocks.
+
+## Tech Stack
+
+- **Cloudflare Workers**: production runtime.
+- **Hono**: HTTP API for the Telegram webhook.
+- **Vercel AI SDK**: model calls, tool calling, and agent loop.
+- **OpenAI GPT**: primary GPT model provider.
+- **Groq**: fast model and audio transcription provider.
+- **Skills**: local capability definitions loaded by the agent loop.
+- **Daytona**: sandboxed shell command execution.
+- **Cloudflare R2**: file system style object storage.
+- **Cloudflare Durable Objects**: per-user Telegram chat history.
+- **TypeScript**: application language.
+- **Bun**: local package manager and development runner.
+
+## Architecture
+
+Telegram sends updates to a Hono webhook route running on Cloudflare Workers.
+
+The Worker validates the Telegram request and runs a single-turn model completion with the Vercel AI SDK. Planned later: route each Telegram user through a Durable Object for chat history and replace the one-shot **`generateText`** call with an AI SDK **agent loop** (for example **`ToolLoopAgent`**), keeping tools and retrieval behind that loop.
+
+Until then there is no Durable Object in the execution path—the Worker calls OpenAI directly and replies on Telegram.
+
+Planned next: tools that use Daytona for sandbox commands and Cloudflare R2 as a file surface, wired through an agent loop. The Worker will send the assistant text to Telegram once that turn finishes.
+
+## Runtime State
+
+- The deployed webhook keeps no chat history server-side yet.
+- Planned: files in Cloudflare R2, commands in Daytona, history in Durable Objects.
+- Secrets are provided through Cloudflare Worker secrets.
+
+## Planned Local Development
+
+The local development flow is still being tightened (`.dev.vars` for secrets, documented smoke tests).
+
+Expected requirements:
+
+- Bun
+- TypeScript
+- Cloudflare Wrangler
+- Telegram bot token
+- OpenAI API key
+- Groq API key
+- Daytona credentials
+- Cloudflare R2 bucket binding
+- Durable Object binding
+
+## Planned Deployment
+
+The production deployment target is Cloudflare Workers.
+
+Deployment will require:
+
+- Worker route for the Telegram webhook.
+- Telegram webhook registration pointing to the Worker URL.
+- Durable Object binding for user chat sessions.
+- R2 bucket binding for file storage.
+- Worker secrets for Telegram, OpenAI, Groq, and Daytona.
