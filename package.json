@@ -29,6 +29,9 @@
 		"@mastra/loggers": "^1.1.1",
 		"@mastra/observability": "^1.11.1",
 		"@mastra/s3": "^0.5.1",
+		"@opentelemetry/exporter-trace-otlp-http": "file:./vendor/opentelemetry-exporter-trace-otlp-http-stub",
+		"@opentelemetry/otlp-exporter-base": "file:./vendor/opentelemetry-otlp-exporter-base-stub",
+		"@opentelemetry/sdk-node": "file:./vendor/opentelemetry-sdk-node-stub",
 		"ai": "^6.0.177",
 		"chat": "^4.28.1",
 		"zod": "^4.4.3"
@@ -37,5 +40,10 @@
 		"@types/node": "^25.6.2",
 		"mastra": "^1.8.1",
 		"typescript": "^6.0.3"
+	},
+	"overrides": {
+		"@opentelemetry/otlp-exporter-base": "file:./vendor/opentelemetry-otlp-exporter-base-stub",
+		"@opentelemetry/sdk-node": "file:./vendor/opentelemetry-sdk-node-stub",
+		"@opentelemetry/exporter-trace-otlp-http": "file:./vendor/opentelemetry-exporter-trace-otlp-http-stub"
 	}
 }

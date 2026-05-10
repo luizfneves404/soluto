@@ -1,0 +1,8 @@
+{
+	"name": "@opentelemetry/exporter-trace-otlp-http",
+	"version": "0.0.0-workerd-stub",
+	"description": "Minimal stub so Daytona SDK can load on Cloudflare without @opentelemetry/otlp-transformer/protobufjs.",
+	"main": "index.js",
+	"type": "commonjs",
+	"license": "Apache-2.0"
+}

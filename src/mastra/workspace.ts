@@ -2,7 +2,11 @@ import { Workspace } from "@mastra/core/workspace";
 import { DaytonaSandbox } from "@mastra/daytona";
 import { S3Filesystem } from "@mastra/s3";
 
-/** R2 at `/data` (workspace tools + s3fs-fuse inside Daytona). Omit `R2_*` to disable the workspace. */
+/**
+ * R2 at `/data` with Daytona sandbox. Omit `R2_*` env vars to disable.
+ * Worker bundle: `package.json` pins `@opentelemetry/*` stubs under `vendor/*-stub`
+ * so the Daytona SDK does not pull protobufjs at import time (Workers deploy 10021).
+ */
 function createWorkspace() {
 	const bucket = process.env.R2_BUCKET;
 	const accountId = process.env.R2_ACCOUNT_ID;
