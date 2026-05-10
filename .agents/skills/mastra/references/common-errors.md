@@ -7,7 +7,7 @@ Comprehensive guide to common Mastra errors and their solutions.
 In a lot of cases, debugging errors can be greatly simplified by first checking the behavior in Mastra Studio. This allows you to interactively test agents and workflows, inspect logs, and see real-time error messages.
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Open `http://localhost:4111` in your browser to access Mastra Studio.
@@ -72,8 +72,8 @@ Property 'memory' does not exist on type 'AgentConfig'
 
 1. Check embedded docs (see `embedded-docs.md`) to check current API
 2. Check `node_modules/@mastra/core/dist/docs/assets/SOURCE_MAP.json` for current exports
-3. Verify package versions: `npm list @mastra/core`
-4. Update dependencies: `npm update @mastra/core`
+3. Verify package versions: `bun pm ls @mastra/core`
+4. Update dependencies: `bun update @mastra/core`
 
 ## Agent errors
 
@@ -517,15 +517,15 @@ const mastra = new Mastra({
 ### Check package versions
 
 ```bash
-npm list @mastra/core
-npm list @mastra/memory
-npm list @mastra/rag
+bun pm ls @mastra/core
+bun pm ls @mastra/memory
+bun pm ls @mastra/rag
 ```
 
 ### Validate TypeScript config
 
 ```bash
-npx tsc --showConfig
+bunx tsc --showConfig
 # Verify target: ES2022, module: ES2022
 ```
 

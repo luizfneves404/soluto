@@ -1,13 +1,19 @@
 # soluto
 
-Welcome to your new [Mastra](https://mastra.ai/) project! We're excited to see what you'll build.
+Soluto agent bot for Telegram.
 
 ## Getting Started
+
+Install dependencies (once per clone):
+
+```shell
+bun install
+```
 
 Start the development server:
 
 ```shell
-pnpm run dev
+bun run dev
 ```
 
 Open [http://localhost:4111](http://localhost:4111) in your browser to access [Mastra Studio](https://mastra.ai/docs/studio/overview). It provides an interactive UI for building and testing your agents, along with a REST API that exposes your Mastra application as a local service. This lets you start building without worrying about integration right away.
@@ -28,7 +34,7 @@ TELEGRAM_BOT_USERNAME=your_bot_username
 3. Start Mastra:
 
 ```shell
-pnpm run dev
+bun run dev
 ```
 
 4. Open the bot on your phone and send a direct message like `weather in Lisbon`.
@@ -42,10 +48,10 @@ This project includes Mastra's Cloudflare deployer and the `@mastra/cloudflare` 
 Before deployment, set these Cloudflare secrets:
 
 ```shell
-npx wrangler secret put OPENAI_API_KEY
-npx wrangler secret put TELEGRAM_BOT_TOKEN
-npx wrangler secret put TELEGRAM_BOT_USERNAME
-npx wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
+bunx wrangler secret put OPENAI_API_KEY
+bunx wrangler secret put TELEGRAM_BOT_TOKEN
+bunx wrangler secret put TELEGRAM_BOT_USERNAME
+bunx wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
 ```
 
 After deployment, register Telegram with:
@@ -75,3 +81,7 @@ The [Mastra platform](https://projects.mastra.ai) provides two products for depl
 - **Server**: A production deployment target that runs your Mastra application as an API server
 
 Learn more in the [Mastra platform documentation](https://mastra.ai/docs/mastra-platform/overview).
+
+# Tech
+
+- Bun (pnpm was taking too long on build)

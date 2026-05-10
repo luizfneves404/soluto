@@ -45,17 +45,17 @@ See [`remote-docs.md`](remote-docs.md) for detailed lookup instructions.
 
 ```bash
 # 1. Check current version
-npm list @mastra/core
+bun pm ls @mastra/core
 
 # 2. Fetch migration guide from official docs
 # Use WebFetch: https://mastra.ai/llms.txt
 # Find relevant migration section
 
 # 3. Update dependencies
-npm install @mastra/core@latest @mastra/memory@latest @mastra/rag@latest mastra@latest
+bun add @mastra/core@latest @mastra/memory@latest @mastra/rag@latest mastra@latest
 
 # 4. Run automated migration (if available)
-npx @mastra/codemod@latest v1  # or whatever version
+bunx @mastra/codemod@latest v1  # or whatever version
 
 # 5. Check embedded docs for new APIs
 cat node_modules/@mastra/core/dist/docs/assets/SOURCE_MAP.json
@@ -64,8 +64,8 @@ cat node_modules/@mastra/core/dist/docs/assets/SOURCE_MAP.json
 # See embedded-docs.md for how to look up each API
 
 # 7. Test
-npm run dev
-npm test
+bun run dev
+bun test
 ```
 
 ## Common migration patterns
@@ -119,16 +119,16 @@ execute: async (inputData, context) => { ... }
 
 - [ ] Backup code (git commit)
 - [ ] Check official migration docs: `https://mastra.ai/llms.txt`
-- [ ] Note current version: `npm list @mastra/core`
+- [ ] Note current version: `bun pm ls @mastra/core`
 - [ ] Read breaking changes list
 - [ ] Tests are passing
 
 ## Post-migration checklist
 
 - [ ] All dependencies updated together
-- [ ] TypeScript compiles: `npx tsc --noEmit`
-- [ ] Tests pass: `npm test`
-- [ ] Studio works: `npm run dev`
+- [ ] TypeScript compiles: `bunx tsc --noEmit`
+- [ ] Tests pass: `bun test`
+- [ ] Studio works: `bun run dev`
 - [ ] No console warnings
 - [ ] APIs verified against embedded docs
 
@@ -148,13 +148,13 @@ execute: async (inputData, context) => { ... }
 1. **Always update all @mastra packages together**
 
    ```bash
-   npm install @mastra/core@latest @mastra/memory@latest @mastra/rag@latest mastra@latest
+   bun add @mastra/core@latest @mastra/memory@latest @mastra/rag@latest mastra@latest
    ```
 
 2. **Check for automated migration tools**
 
    ```bash
-   npx @mastra/codemod@latest [version]
+   bunx @mastra/codemod@latest [version]
    ```
 
 3. **Verify Node.js version requirements**

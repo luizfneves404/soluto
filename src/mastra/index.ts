@@ -46,7 +46,7 @@ export const mastra = new Mastra({
 		},
 	}),
 	deployer: new CloudflareDeployer({
-		name: "soluto-telegram-bot",
+		name: "soluto",
 		compatibility_date: "2025-04-01",
 		compatibility_flags: [
 			"nodejs_compat",

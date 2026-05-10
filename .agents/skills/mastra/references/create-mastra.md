@@ -8,7 +8,7 @@ Complete guide for creating new Mastra projects. Includes both quickstart CLI me
 
 Ask: **"How would you like to create your Mastra project?"**
 
-1. **Quick Setup**: Copy and run: `npm create mastra@latest`
+1. **Quick Setup**: Copy and run: `bun create mastra@latest`
 2. **Guided Setup**: I walk you through each step, you approve commands
 3. **Automatic Setup**: I create everything, just give me your API key
 
@@ -23,15 +23,15 @@ Ask: **"How would you like to create your Mastra project?"**
 Create a new Mastra project with one command:
 
 ```bash
-npm create mastra@latest
+bun create mastra@latest
 ```
 
 **Other package managers:**
 
 ```bash
+npm create mastra@latest
 pnpm create mastra@latest
 yarn create mastra@latest
-bun create mastra@latest
 ```
 
 ## CLI flags
@@ -39,13 +39,13 @@ bun create mastra@latest
 **Skip the example agent:**
 
 ```bash
-npm create mastra@latest --no-example
+bun create mastra@latest --no-example
 ```
 
 **Use a specific template:**
 
 ```bash
-npm create mastra@latest --template <template-name>
+bun create mastra@latest --template <template-name>
 ```
 
 ## Automatic setup / manual installation
@@ -58,14 +58,14 @@ Follow these steps to create a complete Mastra project:
 
 ```bash
 mkdir my-first-agent && cd my-first-agent
-npm init -y
+bun init -y
 ```
 
 ### Step 2: Install dependencies
 
 ```bash
-npm install -D typescript @types/node mastra@latest
-npm install @mastra/core@latest zod@^4
+bun add -d typescript @types/node mastra@latest
+bun add @mastra/core@latest zod@^4
 ```
 
 ### Step 3: Configure package scripts
@@ -189,7 +189,7 @@ export const mastra = new Mastra({
 Launch the development server:
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Access Studio at `http://localhost:4111` to test your agent.

@@ -3,7 +3,7 @@ import { createTelegramAdapter } from "@chat-adapter/telegram";
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { experimental_transcribe as transcribe } from "ai";
-import type { Message, Thread } from "chat";
+import { Message, type Thread } from "chat";
 import { scorers } from "../scorers/weather-scorer";
 import { weatherTool } from "../tools/weather-tool";
 
@@ -93,12 +93,18 @@ Use the weatherTool to fetch current weather data.`,
 									},
 								});
 								console.log("Transcription:", result.text);
-								const transcribedMessage: Message = {
-									...message,
+								const transcribedMessage = new Message({
+									id: message.id,
+									threadId: message.threadId,
 									text: `Áudio: ${result.text}`,
+									formatted: message.formatted,
+									raw: message.raw,
+									author: message.author,
+									metadata: message.metadata,
 									attachments: [],
-									toJSON: () => message.toJSON(),
-								};
+									isMention: message.isMention,
+									links: message.links,
+								});
 								await defaultHandler(thread, transcribedMessage);
 								return;
 							}

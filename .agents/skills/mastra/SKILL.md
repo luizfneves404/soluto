@@ -113,7 +113,7 @@ Studio provides an interactive UI for building, testing, and managing agents, wo
 Inside a Mastra project, run:
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 Then open `http://localhost:4111` in your browser to access Mastra Studio.
@@ -192,7 +192,7 @@ Example model strings:
 
 4. **Test in Studio**
    ```bash
-   npm run dev  # http://localhost:4111
+   bun run dev  # http://localhost:4111
    ```
 
 ## Resources
