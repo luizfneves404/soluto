@@ -48,7 +48,7 @@ Top-level files define how your Mastra project is configured, built, and connect
 - Load the `mastra` skill before any Mastra-related work
 - Register new agents, tools, workflows, and scorers in `src/mastra/index.ts`
 - Use schemas for tool inputs and outputs
-- Run `pnpm run build` to verify changes compile
+- Run `pnpm run typecheck` to verify changes compile. Only after changes that justify a build, run `pnpm run build` to verify the project builds.
 
 ### Never do
 
