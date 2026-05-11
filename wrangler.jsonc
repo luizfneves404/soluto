@@ -22,6 +22,25 @@
 				"class_name": "ChatStateDurableObject"
 			}
 		]
+	},
+	"secrets": {
+		"required": [
+			"COMPOSIO_API_KEY",
+			"GROQ_API_KEY",
+			"OPENAI_API_KEY",
+			"TELEGRAM_BOT_TOKEN",
+			"TELEGRAM_WEBHOOK_SECRET_TOKEN"
+		]
+	},
+	"vars": {
+		"TELEGRAM_BOT_USERNAME": "SolutoAgentBot"
+	},
+	"env": {
+		"dev": {
+			"vars": {
+				"TELEGRAM_BOT_USERNAME": "SolutoAgentTestBot"
+			}
+		}
 	}
 	// "vars": {
 	//   "MY_VAR": "my-variable"

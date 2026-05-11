@@ -31,11 +31,47 @@ const CLEAR_COMMAND = "/clear";
 const CONNECT_CALENDAR_COMMAND = "/connect calendar";
 const AUDIO_TRANSCRIPTION_FAILURE_MESSAGE =
 	"I couldn't transcribe that audio. Please try again or send it as text.";
+const AUDIO_EMPTY_TRANSCRIPT_MESSAGE =
+	"I didn't catch any speech in that audio. Try again with clearer audio or send a text message.";
+const MESSAGE_HANDLER_FAILURE_MESSAGE =
+	"Something went wrong while processing your message. Please try again.";
+
+export class TranscriptionFailedError extends Error {
+	override readonly name = "TranscriptionFailedError";
+}
+
+function logTelegramMessageHandlerFailure(
+	adapterName: string,
+	threadId: string,
+	error: unknown,
+): void {
+	const err = error instanceof Error ? error : new Error(String(error));
+	console.error(
+		JSON.stringify({
+			event: "telegram_message_handler_failed",
+			adapterName,
+			threadId,
+			errorName: err.name,
+			message: err.message,
+		}),
+	);
+}
+
+function logFailureNotifyFailed(threadId: string, error: unknown): void {
+	const err = error instanceof Error ? error : new Error(String(error));
+	console.error(
+		JSON.stringify({
+			event: "telegram_failure_notification_failed",
+			threadId,
+			message: err.message,
+		}),
+	);
+}
 
 export type TelegramWorkerBindings = Cloudflare.Env & {
-	COMPOSIO_API_KEY?: string;
-	COMPOSIO_USER_ID?: string;
-	TELEGRAM_WEBHOOK_SECRET?: string;
+	OPENAI_API_KEY: string;
+	COMPOSIO_API_KEY: string;
+	TELEGRAM_WEBHOOK_SECRET: string;
 };
 
 function toModelMessages(transcript: TranscriptEntry[]): ModelMessage[] {
@@ -262,6 +298,32 @@ export function createSolutoChat(env: TelegramWorkerBindings) {
 		},
 	});
 
+	const originalProcessMessage = chat.processMessage.bind(chat);
+	chat.processMessage = (adapter, threadId, messageOrFactory, options) => {
+		const task = originalProcessMessage(
+			adapter,
+			threadId,
+			messageOrFactory,
+			options,
+		);
+		void task.catch(async (error: unknown) => {
+			logTelegramMessageHandlerFailure(adapter.name, threadId, error);
+			if (adapter.name !== "telegram") {
+				return;
+			}
+			const text =
+				error instanceof TranscriptionFailedError
+					? AUDIO_TRANSCRIPTION_FAILURE_MESSAGE
+					: MESSAGE_HANDLER_FAILURE_MESSAGE;
+			try {
+				await chat.getAdapter("telegram").postMessage(threadId, text);
+			} catch (notifyErr) {
+				logFailureNotifyFailed(threadId, notifyErr);
+			}
+		});
+		return task;
+	};
+
 	chat.registerSingleton();
 
 	const clearTranscript = async (thread: Thread, userKey: string) => {
@@ -423,39 +485,41 @@ export function createSolutoChat(env: TelegramWorkerBindings) {
 			return;
 		}
 
-		try {
-			if (!audioAttachment.fetchData) {
-				throw new Error("Audio attachment does not provide fetchData");
-			}
-
-			const audio = await audioAttachment.fetchData();
-			const transcript = await transcribe({
-				model: groq.transcription(GROQ_TRANSCRIPTION_MODEL),
-				audio,
-			});
-			const transcribedText = transcript.text.trim();
-
-			if (transcribedText.length === 0) {
-				throw new Error("Audio transcription returned empty text");
-			}
-
-			if (normalizeVoiceCommand(transcribedText) === "limpar") {
-				await clearTranscript(thread, message.userKey);
-				return;
-			}
-
-			const userText = `audio: ${transcribedText}`;
-			await thread.post(userText);
-			await generateReply(thread, message, message.userKey, userText);
-		} catch (error) {
-			logLlmEvent("audio_transcription_failed", {
-				userKey: message.userKey,
-				threadId: thread.id,
-				messageId: message.id,
-				error: error instanceof Error ? error.message : String(error),
-			});
-			await thread.post(AUDIO_TRANSCRIPTION_FAILURE_MESSAGE);
+		if (!audioAttachment.fetchData) {
+			throw new TranscriptionFailedError(
+				"Audio attachment does not provide fetchData",
+			);
 		}
+
+		const audio = await audioAttachment.fetchData().catch((cause: unknown) => {
+			throw new TranscriptionFailedError("Failed to fetch audio data", {
+				cause,
+			});
+		});
+
+		const transcript = await transcribe({
+			model: groq.transcription(GROQ_TRANSCRIPTION_MODEL),
+			audio,
+		}).catch((cause: unknown) => {
+			throw new TranscriptionFailedError("Transcription request failed", {
+				cause,
+			});
+		});
+
+		const transcribedText = transcript.text.trim();
+		if (transcribedText.length === 0) {
+			await thread.post(AUDIO_EMPTY_TRANSCRIPT_MESSAGE);
+			return;
+		}
+
+		if (normalizeVoiceCommand(transcribedText) === "limpar") {
+			await clearTranscript(thread, message.userKey);
+			return;
+		}
+
+		const userText = `audio: ${transcribedText}`;
+		await thread.post(userText);
+		await generateReply(thread, message, message.userKey, userText);
 	};
 
 	const handleFirstUserTurn = async (thread: Thread, message: Message) => {

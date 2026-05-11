@@ -13,8 +13,7 @@ const ENABLED_COMPOSIO_TOOLKITS = [GOOGLE_CALENDAR_TOOLKIT] as const;
 
 export type AssistantAgentBindings = {
 	OPENAI_API_KEY: string;
-	COMPOSIO_API_KEY?: string;
-	COMPOSIO_USER_ID?: string;
+	COMPOSIO_API_KEY: string;
 };
 
 export type AssistantAgentContext = {
@@ -35,10 +34,6 @@ export function composioToolRouterSessionStateKey(userKey: string): string {
 }
 
 function createComposio(env: AssistantAgentBindings) {
-	if (!env.COMPOSIO_API_KEY) {
-		return null;
-	}
-
 	return new Composio({
 		apiKey: env.COMPOSIO_API_KEY,
 		provider: new VercelProvider({ strict: true }),
@@ -66,9 +61,6 @@ export async function createCalendarConnectionUrl(
 	userKey: string,
 ): Promise<string | null> {
 	const composio = createComposio(env);
-	if (!composio) {
-		return null;
-	}
 
 	const connectionRequest = await composio.toolkits.authorize(
 		userKey,
@@ -86,28 +78,24 @@ export async function createAssistantAgent(
 	const composio = createComposio(env);
 	const composioUserId = context.userKey;
 
-	let tools: ToolSet | undefined;
-	let composioSessionId: string | undefined;
-
-	if (composio !== null) {
-		const loaded = await loadComposioToolsForSession(
-			composio,
-			composioUserId,
-			context.composioSessionId,
-		);
-		tools = loaded.tools;
-		composioSessionId = loaded.composioSessionId;
-	}
+	const loaded = await loadComposioToolsForSession(
+		composio,
+		composioUserId,
+		context.composioSessionId,
+	);
+	const tools = loaded.tools;
+	const composioSessionId = loaded.composioSessionId;
 
 	const agent = new ToolLoopAgent({
 		model: openai(OPENAI_CHAT_MODEL_ID),
-		instructions: `You are Soluto, a helpful assistant in Telegram. Use Google Calendar tools when the user's request involves their calendar, scheduling, availability, or events.
+		instructions: `You are Soluto, a helpful assistant in Telegram. Be concise. Be proactive, not overly hesitant, in order to fulfill the user's intent as quickly and efficiently as possible. If the action is potentially irreversible and the user's intent is unclear, you should ask for confirmation.
+Use Google Calendar tools when the user's request involves their calendar, scheduling, availability, or events.
 Whenever a message starts with "audio: ", it is a transcription of an audio message. Keep in mind transcriptions may be inaccurate when inferring user intent.`,
 		tools,
 		providerOptions: {
 			openai: {
 				user: context.userKey,
-				reasoningEffort: "minimal",
+				reasoningEffort: "none",
 			} satisfies OpenAILanguageModelResponsesOptions,
 		},
 		experimental_telemetry: {

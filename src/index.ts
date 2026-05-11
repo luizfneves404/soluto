@@ -1,42 +1,46 @@
-import type { Chat } from 'chat'
-import { Hono } from 'hono'
+import type { Chat } from "chat";
+import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 
-import { createSolutoChat } from './bot'
+import { createSolutoChat } from "./bot";
 
-export { ChatStateDurableObject } from './chat-state-durable-object'
+export { ChatStateDurableObject } from "./chat-state-durable-object";
 
 type Bindings = Cloudflare.Env & {
-  TELEGRAM_WEBHOOK_SECRET?: string
-}
+	OPENAI_API_KEY: string;
+	COMPOSIO_API_KEY: string;
+	TELEGRAM_WEBHOOK_SECRET: string;
+};
 
-let chatInstance: Chat | null = null
+let chatInstance: Chat | null = null;
 
-const app = new Hono<{ Bindings: Bindings }>()
+const app = new Hono<{ Bindings: Bindings }>();
 
-app.get('/', (c) => {
-  return c.json({ ok: true, service: 'soluto' })
-})
+app.get("/", (c) => {
+	return c.json({ ok: true, service: "soluto" });
+});
 
-app.post('/telegram/webhook', async (c) => {
-  if (!c.env.TELEGRAM_BOT_TOKEN) {
-    console.error(JSON.stringify({ event: 'missing_telegram_bot_token' }))
-    return c.json({ ok: false, error: 'missing_telegram_bot_token' }, 500)
-  }
+app.post("/telegram/webhook", async (c) => {
+	if (!c.env.TELEGRAM_BOT_TOKEN) {
+		throw new HTTPException(500, {
+			res: c.json({ ok: false, error: "missing_telegram_bot_token" }, 500),
+		});
+	}
 
-  if (!chatInstance) {
-    chatInstance = createSolutoChat(c.env)
-  }
+	if (!chatInstance) {
+		chatInstance = createSolutoChat(c.env);
+	}
 
-  const executionCtx = c.executionCtx
-  const webhookOptions =
-    executionCtx === undefined
-      ? undefined
-      : {
-          waitUntil: (task: PromiseLike<unknown>) =>
-            executionCtx.waitUntil(Promise.resolve(task)),
-        }
+	const executionCtx = c.executionCtx;
+	const webhookOptions =
+		executionCtx === undefined
+			? undefined
+			: {
+					waitUntil: (task: PromiseLike<unknown>) =>
+						executionCtx.waitUntil(Promise.resolve(task)),
+				};
 
-  return chatInstance.webhooks.telegram(c.req.raw, webhookOptions)
-})
+	return chatInstance.webhooks.telegram(c.req.raw, webhookOptions);
+});
 
-export default app
+export default app;

@@ -2,10 +2,10 @@
 	"name": "soluto",
 	"type": "module",
 	"scripts": {
-		"dev": "wrangler dev",
-		"dev:log": "wrangler dev | tee -a dev.log",
+		"dev": "wrangler dev --env dev",
+		"dev:log": "wrangler dev --env dev | tee -a dev.log",
 		"test": "bun test",
-		"deploy": "wrangler deploy --minify",
+		"deploy": "wrangler deploy --minify --env=\"\"",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings"
 	},
 	"dependencies": {
