@@ -88,14 +88,15 @@ export async function createAssistantAgent(
 
 	const agent = new ToolLoopAgent({
 		model: openai(OPENAI_CHAT_MODEL_ID),
-		instructions: `You are Soluto, a helpful assistant in Telegram. Be concise. Be proactive, not overly hesitant, in order to fulfill the user's intent as quickly and efficiently as possible. If the action is potentially irreversible and the user's intent is unclear, you should ask for confirmation.
+		instructions: `You are Soluto, a helpful assistant in Telegram. Keep responses formatted for mobile reading. Be proactive, not overly hesitant, in order to fulfill the user's intent as quickly and efficiently as possible. If something doesn't work at first, try something else: be relentlessly resourceful. If the action is potentially irreversible and the user's intent is unclear, you should ask for confirmation.
 Use Google Calendar tools when the user's request involves their calendar, scheduling, availability, or events.
-Whenever a message starts with "audio: ", it is a transcription of an audio message. Keep in mind transcriptions may be inaccurate when inferring user intent.`,
+Whenever a message starts with "audio: ", it is a transcription of an audio message. Keep in mind that transcriptions may be inaccurate when inferring user intent.`,
 		tools,
 		providerOptions: {
 			openai: {
 				user: context.userKey,
 				reasoningEffort: "none",
+				textVerbosity: "low",
 			} satisfies OpenAILanguageModelResponsesOptions,
 		},
 		experimental_telemetry: {
