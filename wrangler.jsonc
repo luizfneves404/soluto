@@ -37,6 +37,15 @@
 	},
 	"env": {
 		"dev": {
+			"secrets": {
+				"required": [
+					"COMPOSIO_API_KEY",
+					"GROQ_API_KEY",
+					"OPENAI_API_KEY",
+					"TELEGRAM_BOT_TOKEN",
+					"TELEGRAM_WEBHOOK_SECRET_TOKEN"
+				]
+			},
 			"vars": {
 				"TELEGRAM_BOT_USERNAME": "SolutoAgentTestBot"
 			}
