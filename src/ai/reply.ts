@@ -1,17 +1,11 @@
-import { createOpenAI } from '@ai-sdk/openai'
-import { generateText } from 'ai'
+import { generateAssistantAgentReply, OPENAI_CHAT_MODEL_ID } from './agent'
 
-export const OPENAI_CHAT_MODEL_ID = 'gpt-5.4-mini' as const
-
-export function createAssistantLanguageModel(openaiApiKey: string) {
-  const openai = createOpenAI({ apiKey: openaiApiKey })
-  return openai(OPENAI_CHAT_MODEL_ID)
-}
+export { OPENAI_CHAT_MODEL_ID }
 
 export async function generateAssistantReply(openaiApiKey: string, userText: string) {
-  const model = createAssistantLanguageModel(openaiApiKey)
-  return generateText({
-    model,
-    prompt: userText,
-  })
+  return generateAssistantAgentReply(
+    { OPENAI_API_KEY: openaiApiKey },
+    { userKey: 'default', threadId: 'default' },
+    [{ role: 'user', content: userText }],
+  )
 }

@@ -4,7 +4,7 @@ const GLOBAL_SHARD = '__chat_global__'
 
 /**
  * Routes persisted Chat SDK keys to durable object shards:
- * - global: dedupe, callback cache, modals, transcripts
+ * - global: dedupe, callback cache, modals, transcripts, composio tool-router sessions
  * - channel id (e.g. telegram:123): locks, queues, channel-state (Telegram uses lockScope "channel")
  * - full thread id: subscriptions, thread-state, message history for that thread
  */
@@ -13,7 +13,8 @@ export function routeCacheKeyToShard(key: string): string {
     key.startsWith('dedupe:') ||
     key.startsWith('chat:callback:') ||
     key.startsWith('modal-context:') ||
-    key.startsWith('transcripts:')
+    key.startsWith('transcripts:') ||
+    key.startsWith('composio:')
   ) {
     return GLOBAL_SHARD
   }

@@ -9,6 +9,9 @@
       "ESNext",
       "WebWorker"
     ],
+    "types": [
+      "bun-types"
+    ],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"
   },

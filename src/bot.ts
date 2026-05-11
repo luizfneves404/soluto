@@ -1,9 +1,11 @@
 import { createGroq } from "@ai-sdk/groq";
-import { createOpenAI } from "@ai-sdk/openai";
 import { createTelegramAdapter } from "@chat-adapter/telegram";
 import {
-	generateText,
+	type CallWarning,
+	type LanguageModelUsage,
 	type ModelMessage,
+	type StepResult,
+	type ToolSet,
 	experimental_transcribe as transcribe,
 } from "ai";
 import {
@@ -13,28 +15,31 @@ import {
 	type Thread,
 	type TranscriptEntry,
 } from "chat";
-
+import {
+	composioToolRouterSessionStateKey,
+	createAssistantAgent,
+	createCalendarConnectionUrl,
+	OPENAI_CHAT_MODEL_ID,
+} from "./ai/agent";
 import { createDurableObjectStateAdapter } from "./durable-state-adapter";
 
-const OPENAI_MODEL = "gpt-5.4-mini";
 const GROQ_TRANSCRIPTION_MODEL = "whisper-large-v3-turbo";
 const TRANSCRIPT_LIMIT = 200;
+/** Aligns with chat transcript retention so Composio router sessions do not outlive context by default. */
+const COMPOSIO_SESSION_STATE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const CLEAR_COMMAND = "/clear";
-const AUDIO_TRANSCRIPTION_SYSTEM_PROMPT =
-	'Whenever a message starts with "audio: ", it is a transcription of an audio message.';
+const CONNECT_CALENDAR_COMMAND = "/connect calendar";
 const AUDIO_TRANSCRIPTION_FAILURE_MESSAGE =
 	"I couldn't transcribe that audio. Please try again or send it as text.";
 
 export type TelegramWorkerBindings = Cloudflare.Env & {
+	COMPOSIO_API_KEY?: string;
+	COMPOSIO_USER_ID?: string;
 	TELEGRAM_WEBHOOK_SECRET?: string;
 };
 
 function toModelMessages(transcript: TranscriptEntry[]): ModelMessage[] {
 	return [
-		{
-			role: "system",
-			content: AUDIO_TRANSCRIPTION_SYSTEM_PROMPT,
-		},
 		...transcript.map((entry) => ({
 			role: entry.role,
 			content: entry.text,
@@ -68,20 +73,165 @@ function normalizeVoiceCommand(text: string): string {
 
 function logLlmEvent(event: string, details: Record<string, unknown>): void {
 	try {
-		console.info(JSON.stringify({ event, ...details }));
+		console.info(JSON.stringify({ event, ...details }, null, 2));
 	} catch (error) {
 		console.info(
-			JSON.stringify({
-				event,
-				log_error: error instanceof Error ? error.message : String(error),
-			}),
+			JSON.stringify(
+				{
+					event,
+					log_error: error instanceof Error ? error.message : String(error),
+				},
+				null,
+				2,
+			),
 		);
 	}
 }
 
+/** One-line minimal progress logs for the LLM path. */
+function logLlmBrief(
+	tag: "start" | "step" | "agent_ready",
+	payload: Record<string, string | number | undefined>,
+): void {
+	console.info(`llm:${tag} ${JSON.stringify(payload, null, 2)}`);
+}
+
+function summarizeToolCallsForLog(toolCalls: StepResult<ToolSet>["toolCalls"]) {
+	return toolCalls.map((tc) => {
+		if ("dynamic" in tc && tc.dynamic === true) {
+			return {
+				toolCallId: tc.toolCallId,
+				toolName: tc.toolName,
+				input: tc.input,
+				dynamic: true as const,
+				invalid: tc.invalid,
+				error: tc.error,
+				providerExecuted: tc.providerExecuted,
+			};
+		}
+		return {
+			toolCallId: tc.toolCallId,
+			toolName: tc.toolName,
+			input: tc.input,
+			providerExecuted: tc.providerExecuted,
+		};
+	});
+}
+
+function summarizeToolResultsForLog(
+	toolResults: StepResult<ToolSet>["toolResults"],
+) {
+	return toolResults.map((tr) => {
+		if ("dynamic" in tr && tr.dynamic === true) {
+			return {
+				toolCallId: tr.toolCallId,
+				toolName: tr.toolName,
+				input: tr.input,
+				output: tr.output,
+				dynamic: true as const,
+				preliminary: tr.preliminary,
+				providerExecuted: tr.providerExecuted,
+			};
+		}
+		return {
+			toolCallId: tr.toolCallId,
+			toolName: tr.toolName,
+			input: tr.input,
+			output: tr.output,
+			preliminary: tr.preliminary,
+			providerExecuted: tr.providerExecuted,
+		};
+	});
+}
+
+function languageModelUsageEqual(a: LanguageModelUsage, b: LanguageModelUsage) {
+	return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function stepWarningsEqual(
+	a: CallWarning[] | undefined,
+	b: CallWarning[] | undefined,
+) {
+	return JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+}
+
+/** Rich per-step snapshot from AI SDK `GenerateTextResult.steps` (includes Composio tools as normal tool calls). */
+function serializeAgentStepsForLog(
+	steps: ReadonlyArray<StepResult<ToolSet>>,
+	options: {
+		overallFinishReason: StepResult<ToolSet>["finishReason"];
+		overallRawFinishReason: StepResult<ToolSet>["rawFinishReason"];
+		overallWarnings: CallWarning[] | undefined;
+	},
+): unknown[] {
+	const singleStep = steps.length === 1;
+	return steps.map((step) => {
+		const hasToolActivity =
+			step.toolCalls.length > 0 ||
+			step.toolResults.length > 0 ||
+			step.dynamicToolCalls.length > 0 ||
+			step.dynamicToolResults.length > 0;
+
+		const response: Record<string, unknown> = {
+			id: step.response.id,
+			timestamp: step.response.timestamp,
+			modelId: step.response.modelId,
+		};
+		if (step.response.body !== undefined) {
+			response.body = step.response.body;
+		}
+		if (hasToolActivity) {
+			response.messages = step.response.messages;
+		}
+
+		const omitFinishReasons =
+			singleStep &&
+			step.finishReason === options.overallFinishReason &&
+			step.rawFinishReason === options.overallRawFinishReason;
+
+		const stepWarnings = step.warnings;
+		const omitWarnings =
+			stepWarnings === undefined ||
+			stepWarnings.length === 0 ||
+			stepWarningsEqual(stepWarnings, options.overallWarnings);
+
+		return {
+			stepNumber: step.stepNumber,
+			model: step.model,
+			...(omitFinishReasons
+				? {}
+				: {
+						finishReason: step.finishReason,
+						rawFinishReason: step.rawFinishReason,
+					}),
+			usage: step.usage,
+			toolCalls: summarizeToolCallsForLog(step.toolCalls),
+			toolResults: summarizeToolResultsForLog(step.toolResults),
+			dynamicToolCalls: step.dynamicToolCalls.map((tc) => ({
+				toolCallId: tc.toolCallId,
+				toolName: tc.toolName,
+				input: tc.input,
+				invalid: tc.invalid,
+				error: tc.error,
+				providerExecuted: tc.providerExecuted,
+			})),
+			dynamicToolResults: step.dynamicToolResults.map((tr) => ({
+				toolCallId: tr.toolCallId,
+				toolName: tr.toolName,
+				input: tr.input,
+				output: tr.output,
+				preliminary: tr.preliminary,
+			})),
+			response,
+			...(omitWarnings ? {} : { warnings: stepWarnings }),
+			providerMetadata: step.providerMetadata,
+			content: step.content,
+		};
+	});
+}
+
 export function createSolutoChat(env: TelegramWorkerBindings) {
 	const state = createDurableObjectStateAdapter(env.CHAT_STATE);
-	const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
 	const groq = createGroq({ apiKey: env.GROQ_API_KEY });
 	const telegram = createTelegramAdapter({
 		mode: "webhook",
@@ -126,6 +276,18 @@ export function createSolutoChat(env: TelegramWorkerBindings) {
 		await thread.post("Conversation history cleared for future LLM replies.");
 	};
 
+	const connectCalendar = async (thread: Thread, userKey: string) => {
+		const redirectUrl = await createCalendarConnectionUrl(env, userKey);
+		if (!redirectUrl) {
+			await thread.post(
+				"Google Calendar connection is not configured yet. Please set COMPOSIO_API_KEY and try again.",
+			);
+			return;
+		}
+
+		await thread.post(`Connect Google Calendar here: ${redirectUrl}`);
+	};
+
 	const generateReply = async (
 		thread: Thread,
 		message: Message,
@@ -153,70 +315,76 @@ export function createSolutoChat(env: TelegramWorkerBindings) {
 		});
 		const messages = toModelMessages(transcript);
 
-		logLlmEvent("llm_call_start", {
-			provider: "openai",
-			model: OPENAI_MODEL,
+		logLlmBrief("start", {
 			userKey,
 			threadId: thread.id,
-			messages,
+			n: messages.length,
 		});
 
-		const result = await generateText({
-			model: openai(OPENAI_MODEL),
+		const composioSessionKey = composioToolRouterSessionStateKey(userKey);
+		const storedComposioSessionId =
+			(await state.get<string>(composioSessionKey)) ?? undefined;
+
+		const { agent, composioSessionId } = await createAssistantAgent(env, {
+			userKey,
+			threadId: thread.id,
+			composioSessionId: storedComposioSessionId,
+		});
+
+		logLlmBrief("agent_ready", {
+			userKey,
+			threadId: thread.id,
+		});
+
+		if (composioSessionId !== undefined && composioSessionId.length > 0) {
+			await state.set(
+				composioSessionKey,
+				composioSessionId,
+				COMPOSIO_SESSION_STATE_TTL_MS,
+			);
+		}
+
+		const result = await agent.generate({
 			messages,
-			providerOptions: {
-				openai: {
-					user: userKey,
-				},
-			},
-			experimental_telemetry: {
-				isEnabled: true,
-				functionId: "telegram-reply",
-				recordInputs: true,
-				recordOutputs: true,
-				metadata: {
-					userKey,
-					threadId: thread.id,
-				},
-			},
-			experimental_onStepStart: (event) => {
-				logLlmEvent("llm_step_start", {
-					stepNumber: event.stepNumber,
-					provider: event.model.provider,
-					model: event.model.modelId,
-					userKey,
-					threadId: thread.id,
-					messages: event.messages,
-					providerOptions: event.providerOptions,
-				});
-			},
 			onStepFinish: (event) => {
-				logLlmEvent("llm_step_finish", {
-					stepNumber: event.stepNumber,
-					provider: event.model.provider,
-					model: event.model.modelId,
+				const toolNames = [
+					...event.toolCalls.map((t) => String(t.toolName)),
+					...event.dynamicToolCalls.map((t) => t.toolName),
+				];
+				logLlmBrief("step", {
 					userKey,
 					threadId: thread.id,
-					finishReason: event.finishReason,
-					usage: event.usage,
-					requestBody: event.request.body,
-					response: event.response,
-				});
-			},
-			onFinish: (event) => {
-				logLlmEvent("llm_call_finish", {
-					provider: event.model.provider,
-					model: event.model.modelId,
-					userKey,
-					threadId: thread.id,
-					finishReason: event.finishReason,
-					totalUsage: event.totalUsage,
-					text: event.text,
+					step: event.stepNumber,
+					...(toolNames.length > 0 ? { tools: toolNames.join(",") } : {}),
 				});
 			},
 		});
 
 		const replyText = result.text;
+
+		const stepsForLog = serializeAgentStepsForLog(result.steps, {
+			overallFinishReason: result.finishReason,
+			overallRawFinishReason: result.rawFinishReason,
+			overallWarnings: result.warnings,
+		});
+
+		logLlmEvent("llm_call_complete", {
+			provider: "openai",
+			model: OPENAI_CHAT_MODEL_ID,
+			userKey,
+			threadId: thread.id,
+			composioSessionId: composioSessionId ?? null,
+			messages,
+			steps: stepsForLog,
+			finishReason: result.finishReason,
+			rawFinishReason: result.rawFinishReason,
+			totalUsage: result.totalUsage,
+			...(languageModelUsageEqual(result.usage, result.totalUsage)
+				? {}
+				: { lastStepUsage: result.usage }),
+			warnings: result.warnings,
+			...(result.steps.length === 0 ? { text: replyText } : {}),
+		});
 
 		const sent = await thread.post(replyText);
 
@@ -241,6 +409,11 @@ export function createSolutoChat(env: TelegramWorkerBindings) {
 
 		if (message.text.trim() === CLEAR_COMMAND) {
 			await clearTranscript(thread, message.userKey);
+			return;
+		}
+
+		if (message.text.trim() === CONNECT_CALENDAR_COMMAND) {
+			await connectCalendar(thread, message.userKey);
 			return;
 		}
 

@@ -36,6 +36,9 @@ describe("routeCacheKeyToShard", () => {
 		expect(routeCacheKeyToShard("transcripts:telegram:user-1")).toBe(
 			"__chat_global__",
 		);
+		expect(routeCacheKeyToShard("composio:tool-router-session:telegram:1")).toBe(
+			"__chat_global__",
+		);
 		expect(routeCacheKeyToShard("thread-state:telegram:thread-1")).toBe(
 			"telegram:thread-1",
 		);
