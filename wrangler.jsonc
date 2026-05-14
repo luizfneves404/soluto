@@ -25,7 +25,6 @@
 	},
 	"secrets": {
 		"required": [
-			"COMPOSIO_API_KEY",
 			"GROQ_API_KEY",
 			"OPENAI_API_KEY",
 			"TELEGRAM_BOT_TOKEN",
@@ -37,9 +36,16 @@
 	},
 	"env": {
 		"dev": {
+			"durable_objects": {
+				"bindings": [
+					{
+						"name": "CHAT_STATE",
+						"class_name": "ChatStateDurableObject"
+					}
+				]
+			},
 			"secrets": {
 				"required": [
-					"COMPOSIO_API_KEY",
 					"GROQ_API_KEY",
 					"OPENAI_API_KEY",
 					"TELEGRAM_BOT_TOKEN",

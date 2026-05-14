@@ -8,7 +8,6 @@ export { ChatStateDurableObject } from "./chat-state-durable-object";
 
 type Bindings = Cloudflare.Env & {
 	OPENAI_API_KEY: string;
-	COMPOSIO_API_KEY: string;
 	TELEGRAM_WEBHOOK_SECRET: string;
 };
 

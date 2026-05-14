@@ -77,30 +77,6 @@ Planned next: tools that use Daytona for sandbox commands and Cloudflare R2 as a
 - Planned: files in Cloudflare R2, commands in Daytona, history in Durable Objects.
 - Secrets are provided through Cloudflare Worker secrets.
 
-## Planned Local Development
+## Plans
 
-The local development flow is still being tightened (`.dev.vars` for secrets, documented smoke tests).
-
-Expected requirements:
-
-- Bun
-- TypeScript
-- Cloudflare Wrangler
-- Telegram bot token
-- OpenAI API key
-- Groq API key
-- Daytona credentials
-- Cloudflare R2 bucket binding
-- Durable Object binding
-
-## Planned Deployment
-
-The production deployment target is Cloudflare Workers.
-
-Deployment will require:
-
-- Worker route for the Telegram webhook.
-- Telegram webhook registration pointing to the Worker URL.
-- Durable Object binding for user chat sessions.
-- R2 bucket binding for file storage.
-- Worker secrets for Telegram, OpenAI, Groq, and Daytona.
+- Use Google Calendar REST API and expose it as tools for the agent
